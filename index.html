@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coin Refill — Pokémon FireRed / LeafGreen</title>
+<meta name="description" content="Set the Game Corner coin counter to 9,999 in a Pokémon FireRed or LeafGreen save file. Runs entirely in your browser.">
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --ink:#16181d; --muted:#5c6270; --line:#e2e5ea;
+    --accent:#c8102e; --accent-ink:#fff; --ok:#0f7b3d; --ok-bg:#e8f6ee;
+    --warn:#8a5a00; --warn-bg:#fdf4e0; --bad:#a4262c; --bad-bg:#fdecec;
+    --code:#eef0f4;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#14161a; --card:#1c1f25; --ink:#e9ecf1; --muted:#a0a7b4; --line:#2c313a;
+      --accent:#e4405a; --accent-ink:#fff; --ok:#5ed99b; --ok-bg:#12331f;
+      --warn:#f0c274; --warn-bg:#33280f; --bad:#ff8e8e; --bad-bg:#3a1a1a; --code:#252932;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 64px}
+  h1{font-size:1.6rem;margin:.2em 0 .1em;letter-spacing:-.02em}
+  h2{font-size:1.05rem;margin:1.8em 0 .5em}
+  .sub{color:var(--muted);margin:0 0 1.4em}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:16px;margin:14px 0}
+  ol{padding-left:1.3em;margin:.4em 0} li{margin:.45em 0}
+  code{background:var(--code);padding:.12em .4em;border-radius:5px;
+    font:.86em/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
+  .pick{display:block;width:100%;background:var(--accent);color:var(--accent-ink);
+    border:0;border-radius:12px;padding:18px;font-size:1.05rem;font-weight:600;
+    text-align:center;cursor:pointer}
+  .pick input{display:none}
+  button{font:inherit}
+  .go{display:block;width:100%;background:var(--accent);color:var(--accent-ink);
+    border:0;border-radius:12px;padding:18px;font-size:1.05rem;font-weight:600;
+    cursor:pointer;margin-top:12px}
+  .go:disabled{opacity:.5;cursor:not-allowed}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;
+    border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:0}
+  .row b{font-weight:600}
+  .note{border-radius:10px;padding:12px 14px;margin:12px 0;font-size:.92rem}
+  .ok{background:var(--ok-bg);color:var(--ok)}
+  .warn{background:var(--warn-bg);color:var(--warn)}
+  .bad{background:var(--bad-bg);color:var(--bad)}
+  .amount{width:100%;padding:14px;font-size:1.1rem;border:1px solid var(--line);
+    border-radius:10px;background:var(--card);color:var(--ink);margin-top:6px}
+  label.fld{display:block;font-size:.9rem;color:var(--muted);margin-top:12px}
+  .foot{color:var(--muted);font-size:.85rem;margin-top:2.5em;text-align:center}
+  .foot a{color:var(--muted)}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Coin Refill</h1>
+<p class="sub">Set the Game Corner coin counter to 9,999 in a Pokémon <b>FireRed</b> or
+<b>LeafGreen</b> save, so you can buy every prize despite the cap.</p>
+
+<div class="note ok">Your save never leaves your phone. Everything happens in this
+browser tab — there is no upload and no server.</div>
+
+<div class="card">
+<h2 style="margin-top:0">Before you start</h2>
+<ol>
+<li>In the game, <b>save at the Game Corner</b>.</li>
+<li>In RetroArch, open the menu and choose <b>Close Content</b>.
+    <br><small>Not pause — RetroArch keeps the save in memory and would overwrite your
+    change if the game is still open.</small></li>
+</ol>
+</div>
+
+<label class="pick">Choose your save file (.srm)
+  <input type="file" id="file" accept=".srm,.sav,application/octet-stream">
+</label>
+<p class="sub" style="font-size:.88rem;margin-top:10px">
+On Android it is usually under <code>RetroArch/saves/</code>. If you can't find it, check
+RetroArch → Settings → Directory → Save Files.</p>
+
+<div id="out"></div>
+
+<div class="card" id="action" hidden>
+  <label class="fld" for="amount">Coins to set (max 9,999)</label>
+  <input class="amount" id="amount" type="number" min="0" max="9999" value="9999"
+         inputmode="numeric">
+  <button class="go" id="go">Download fixed save</button>
+  <div class="note warn" style="margin-bottom:0">
+    <b>Keep the file name exactly the same.</b> Then move it back into your saves folder,
+    replacing the old one. Load the game and your coins will be there.
+  </div>
+</div>
+
+<p class="foot">Works on FireRed, LeafGreen and FireRed-based rom hacks such as FRLG+.<br>
+Does <b>not</b> work on Ruby, Sapphire or Emerald.<br>
+<a href="https://github.com/Toboolf/pokemon-frlg-coin-refill">Source on GitHub</a></p>
+
+</div>
+<script>
+"use strict";
+var SECTION_SIZE=0x1000, DATA=0xF80, PER_SLOT=14, SIG=0x08012025;
+var OFF_ID=0xFF4, OFF_CK=0xFF6, OFF_SIG=0xFF8, OFF_IDX=0xFFC;
+var SLOTS={A:0x00000,B:0x0E000};
+var SIZES={0:0xF2C,1:0xF80,2:0xF80,3:0xF80,4:0xF08,5:0xF80,6:0xF80,7:0xF80,
+           8:0xF80,9:0xF80,10:0xF80,11:0xF80,12:0xF80,13:0x7D0};
+var SB1_SECTIONS=[1,2,3,4], KEY_OFF=0x0F20, MONEY=0x0290, COINS=0x0294;
+var COIN_MAX=9999, MONEY_MAX=999999;
+var MIN_SIZE=SLOTS.B+PER_SLOT*SECTION_SIZE;
+
+var CHARS={0:" "};
+for(var i=0;i<26;i++){CHARS[0xBB+i]=String.fromCharCode(65+i);CHARS[0xD5+i]=String.fromCharCode(97+i);}
+for(var i=0;i<10;i++){CHARS[0xA1+i]=String.fromCharCode(48+i);}
+
+function checksum(dv,start,size){
+  var t=0;
+  for(var i=0;i<size;i+=4){t=(t+dv.getUint32(start+i,true))>>>0;}
+  return (((t>>>16)+(t&0xFFFF))&0xFFFF);
+}
+function decodeName(bytes,at,len){
+  var s="";
+  for(var i=0;i<len;i++){var b=bytes[at+i]; if(b===0xFF)break; s+=(CHARS[b]||"?");}
+  return s;
+}
+function readSlot(dv,bytes,name,base){
+  var sections={},dup=false;
+  for(var p=0;p<PER_SLOT;p++){
+    var off=base+p*SECTION_SIZE;
+    var id=dv.getUint16(off+OFF_ID,true);
+    if(sections[id]!==undefined)dup=true;
+    sections[id]={id:id,off:off,
+      stored:dv.getUint16(off+OFF_CK,true),
+      sig:dv.getUint32(off+OFF_SIG,true),
+      idx:dv.getUint32(off+OFF_IDX,true)};
+  }
+  var populated=false,bad=[],missing=[];
+  for(var id=0;id<PER_SLOT;id++){
+    var s=sections[id];
+    if(!s){missing.push(id);continue;}
+    if(s.sig===SIG)populated=true; else bad.push(id);
+    if(SIZES[id]!==undefined && checksum(dv,s.off,SIZES[id])!==s.stored)bad.push(id);
+  }
+  var slot={name:name,sections:sections,populated:populated,
+    intact:(!dup&&missing.length===0&&bad.length===0),
+    index:sections[0]?sections[0].idx:-1};
+  if(slot.intact){
+    var key=dv.getUint32(sections[0].off+KEY_OFF,true);
+    slot.key=key;
+    slot.moneyAt=locate(slot,MONEY); slot.coinsAt=locate(slot,COINS);
+    slot.money=(dv.getUint32(slot.moneyAt.at,true)^key)>>>0;
+    slot.coins=dv.getUint16(slot.coinsAt.at,true)^(key&0xFFFF);
+    slot.player=decodeName(bytes,sections[0].off,8);
+    slot.plausible=(slot.coins<=COIN_MAX&&slot.money<=MONEY_MAX);
+  }
+  return slot;
+}
+function locate(slot,off){
+  var sid=SB1_SECTIONS[Math.floor(off/DATA)];
+  return {sid:sid, at:slot.sections[sid].off+(off%DATA)};
+}
+function parse(bytes){
+  if(bytes.length<MIN_SIZE)throw new Error("TOO_SMALL");
+  var dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.length);
+  var a=readSlot(dv,bytes,"A",SLOTS.A), b=readSlot(dv,bytes,"B",SLOTS.B);
+  if(!a.populated&&!b.populated)throw new Error("NOT_GEN3");
+  var usable=[a,b].filter(function(s){return s.populated&&s.intact;});
+  if(!usable.length)throw new Error("DAMAGED");
+  usable.sort(function(x,y){return y.index-x.index;});
+  return {slots:[a,b],live:usable[0],dv:dv};
+}
+function setCoins(bytes,save,value){
+  var out=bytes.slice();
+  var dv=new DataView(out.buffer,out.byteOffset,out.length);
+  var slot=save.live;
+  dv.setUint16(slot.coinsAt.at,(value^(slot.key&0xFFFF))&0xFFFF,true);
+  var sec=slot.sections[slot.coinsAt.sid];
+  dv.setUint16(sec.off+OFF_CK,checksum(dv,sec.off,SIZES[sec.id]),true);
+  return out;
+}
+
+var num=function(n){return n.toLocaleString("en-US");};
+var out=document.getElementById("out"), action=document.getElementById("action");
+var amount=document.getElementById("amount"), go=document.getElementById("go");
+var current=null;
+
+document.getElementById("file").addEventListener("change",function(e){
+  var f=e.target.files&&e.target.files[0];
+  action.hidden=true; current=null; out.innerHTML="";
+  if(!f)return;
+  if(f.size>1024*1024){
+    return fail("That file is "+Math.round(f.size/1048576)+" MB, which makes it a ROM "+
+      "rather than a save. Look for a file ending in <code>.srm</code> instead.");
+  }
+  var r=new FileReader();
+  r.onload=function(){
+    var bytes=new Uint8Array(r.result), save;
+    try{ save=parse(bytes); }
+    catch(err){
+      if(err.message==="TOO_SMALL")return fail("That file is too small to be a "+
+        "Game Boy Advance save. Look for a file ending in <code>.srm</code>.");
+      if(err.message==="NOT_GEN3")return fail("That doesn't look like a Pokémon "+
+        "FireRed/LeafGreen save. Make sure you picked the right file.");
+      if(err.message==="DAMAGED")return fail("Both save slots in that file failed "+
+        "their checks, so it isn't safe to change. Nothing was modified.");
+      return fail("Couldn't read that file.");
+    }
+    if(!save.live.plausible){
+      return fail("This save opened, but the coin and money values don't make sense "+
+        "for FireRed/LeafGreen. That usually means it's a different game. "+
+        "Nothing was modified.");
+    }
+    current={bytes:bytes,save:save,name:f.name};
+    var s=save.live;
+    out.innerHTML='<div class="card">'+
+      '<h2 style="margin-top:0">Found your save</h2>'+
+      row("Player",s.player||"(no name)")+
+      row("Coins right now","<b>"+num(s.coins)+"</b> / 9,999")+
+      row("Money","₽"+num(s.money))+
+      row("File",f.name)+
+      '<div class="note ok" style="margin-bottom:0">All checks passed. '+
+      'Money and everything else stays untouched — only the coins change.</div></div>';
+    amount.value=String(COIN_MAX);
+    action.hidden=false;
+  };
+  r.onerror=function(){fail("Couldn't open that file.");};
+  r.readAsArrayBuffer(f);
+});
+
+function row(k,v){return '<div class="row"><span>'+k+'</span><span>'+v+'</span></div>';}
+function fail(msg){out.innerHTML='<div class="note bad">'+msg+'</div>';}
+
+go.addEventListener("click",function(){
+  if(!current)return;
+  var v=parseInt(amount.value,10);
+  if(isNaN(v)||v<0||v>COIN_MAX){
+    return alert("Pick a number between 0 and 9,999.");
+  }
+  var newBytes;
+  try{ newBytes=setCoins(current.bytes,current.save,v); }
+  catch(e){ return fail("Something went wrong; your file was not changed."); }
+  var check;
+  try{ check=parse(newBytes); }catch(e){ check=null; }
+  if(!check||!check.live.intact||check.live.coins!==v||check.live.money!==current.save.live.money){
+    return fail("The result failed its own safety check, so nothing was downloaded. "+
+      "Your original file is untouched.");
+  }
+  var blob=new Blob([newBytes],{type:"application/octet-stream"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url; a.download=current.name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},4000);
+  out.insertAdjacentHTML("beforeend",
+    '<div class="note ok"><b>Downloaded '+current.name+' with '+num(v)+' coins.</b><br>'+
+    'Now move it into your saves folder, replacing the old file. Keep the name identical.</div>');
+});
+</script>
+</body>
+</html>

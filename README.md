@@ -68,6 +68,18 @@ plus extra Pokémon and items. The goal the repo exists for is met.
 Step 2 is the one that bites if skipped, so the tool refuses to write while RetroArch
 is running rather than letting the edit be silently overwritten.
 
+## No computer? Use the web version
+
+For anyone on a phone — or without Python — there is a browser version that does the same
+thing with no install:
+
+**https://toboolf.github.io/pokemon-frlg-coin-refill/**
+
+Pick your `.srm`, it shows your player name and current coins, and hands back a fixed file.
+It runs entirely in the browser: the save is never uploaded and there is no server. The page
+is `index.html` in this repo, and its logic is verified byte-for-byte against the Python
+implementation.
+
 ## Usage
 
 Requires Python 3 and nothing else — no dependencies, no install step.
