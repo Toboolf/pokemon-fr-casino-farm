@@ -1,0 +1,22 @@
+# Never commit ROMs or saves
+*.gba
+*.gb
+*.bps
+*.ips
+*.ups
+*.srm
+*.sav
+*.state
+*.state[0-9]
+
+# Local backups made by the tool
+backups/
+*.bak
+*.bak.*
+
+# macOS / Python noise
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+venv/
