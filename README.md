@@ -19,9 +19,12 @@ one section, one slot — and let the game handle every actual purchase.
 |---|---|
 | M0 — Research + plan | ✅ Done |
 | M1 — Read-only inspector | ✅ Done |
-| M2 — Coin writer | ✅ Done (incl. the M3 running-emulator guard) |
-| M3 — Remaining guardrails | ⬜ Not started |
-| M4 — Convenience | ⬜ Not started |
+| M2 — Coin writer | ✅ Done, validated in-game |
+| M3 — Guardrails | ✅ Folded into M2 |
+| M4 — Convenience | ⬜ Not needed so far |
+
+**Outcome:** the prize counters were bought out over five refill cycles on 2026-09-10,
+plus extra Pokémon and items. The goal the repo exists for is met.
 
 ## The refill loop
 
