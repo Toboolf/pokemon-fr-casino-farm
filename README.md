@@ -1,7 +1,10 @@
-# pokemon-fr-casino-farm
+# pokemon-frlg-coin-refill
 
-Tooling to buy out the Celadon Game Corner prize counters in **Pokémon FireRed & LeafGreen+
-(FRLG+) v1.5.1**, running under **RetroArch 1.22.2 + gpSP** on macOS.
+Refill the Celadon Game Corner coin counter in a **Pokémon FireRed / LeafGreen** save, so you
+can buy out the prize counters despite the 9,999 coin cap.
+
+Developed and verified against **FRLG+ v1.5.1** under RetroArch + gpSP on macOS, but nothing
+in it is specific to that hack, that emulator or that OS — see [Compatibility](#compatibility).
 
 ## The problem in one line
 
@@ -10,8 +13,32 @@ counter has to be refilled several times. It is a *cap* problem, not a *farming 
 
 ## The approach in one line
 
-Edit the coin field directly in RetroArch's `.srm` save file between play sessions — 4 bytes,
-one section, one slot — and let the game handle every actual purchase.
+Edit the coin field directly in the `.srm` battery save between play sessions — 4 bytes, one
+section, one slot — and let the game handle every actual purchase.
+
+## Compatibility
+
+| Target | Status |
+|---|---|
+| FRLG+ v1.5.1 | ✅ Verified end to end |
+| Vanilla FireRed / LeafGreen | ✅ Expected to work, untested |
+| Other `pokefirered` decomp hacks | ✅ Expected to work, untested |
+| Ruby / Sapphire / Emerald | ❌ Not supported |
+
+Every constant in `gen3.py` is the stock FireRed/LeafGreen save layout — FRLG+ works precisely
+*because* it is a `pokefirered` decomp hack that did not move any of it. So vanilla FRLG and
+most FR-based hacks should work unchanged. That is reasoning, not a test result: the only save
+this has been run against is an FRLG+ one.
+
+If the offsets are wrong for your ROM, the tool refuses rather than corrupting anything — the
+plausibility gate catches decoded values outside the game's own limits.
+
+Ruby/Sapphire/Emerald are a different layout: Emerald puts money at `0x0490` and the security
+key at `0x01F4`, Ruby/Sapphire have no security key at all, and their section 4 is `0xC40`.
+Do not point this at one.
+
+**Emulator-agnostic.** A `.srm` is just the raw battery file, and `--save` takes any path, so
+mGBA, VBA-M or a real cartridge dump all work. Only the auto-detection is RetroArch-flavoured.
 
 ## Status
 
