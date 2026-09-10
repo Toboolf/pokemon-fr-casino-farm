@@ -91,8 +91,14 @@ RetroArch → Settings → Directory → Save Files.</p>
          inputmode="numeric">
   <button class="go" id="go">Download fixed save</button>
   <div class="note warn" style="margin-bottom:0">
-    <b>Keep the file name exactly the same.</b> Then move it back into your saves folder,
-    replacing the old one. Load the game and your coins will be there.
+    <b>⚠️ Do not rename the file.</b>
+    It must still be called <code id="fname">the same name</code> when you put it back.
+    RetroArch finds your save by its name, so if the name changes even slightly the game
+    will load as if nothing happened.
+    <br><br>
+    Watch out: if a file with that name is already in your Downloads folder, your browser
+    may save this one as <code>… (1).srm</code> instead. If that happens, rename it back
+    before moving it.
   </div>
 </div>
 
@@ -220,16 +226,19 @@ document.getElementById("file").addEventListener("change",function(e){
       row("Player",s.player||"(no name)")+
       row("Coins right now","<b>"+num(s.coins)+"</b> / 9,999")+
       row("Money","₽"+num(s.money))+
-      row("File",f.name)+
+      row("File",esc(f.name))+
       '<div class="note ok" style="margin-bottom:0">All checks passed. '+
       'Money and everything else stays untouched — only the coins change.</div></div>';
     amount.value=String(COIN_MAX);
+    var fn=document.getElementById("fname"); if(fn)fn.textContent=f.name;
     action.hidden=false;
   };
   r.onerror=function(){fail("Couldn't open that file.");};
   r.readAsArrayBuffer(f);
 });
 
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function row(k,v){return '<div class="row"><span>'+k+'</span><span>'+v+'</span></div>';}
 function fail(msg){out.innerHTML='<div class="note bad">'+msg+'</div>';}
 
@@ -255,8 +264,10 @@ go.addEventListener("click",function(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){URL.revokeObjectURL(url);},4000);
   out.insertAdjacentHTML("beforeend",
-    '<div class="note ok"><b>Downloaded '+current.name+' with '+num(v)+' coins.</b><br>'+
-    'Now move it into your saves folder, replacing the old file. Keep the name identical.</div>');
+    '<div class="note ok"><b>Downloaded — '+num(v)+' coins.</b><br>'+
+    'Now move it into your saves folder and replace the old file.<br><br>'+
+    'It must be named exactly <code>'+esc(current.name)+'</code>. '+
+    'If your browser added anything to the name, rename it back first.</div>');
 });
 </script>
 </body>
