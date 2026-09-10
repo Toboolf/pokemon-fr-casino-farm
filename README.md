@@ -9,7 +9,8 @@ in it is specific to that hack, that emulator or that OS — see [Compatibility]
 ## The problem in one line
 
 The coin counter is capped at **9,999**, the full prize sweep costs **~39,000 coins**, so the
-counter has to be refilled several times. It is a *cap* problem, not a *farming rate* problem.
+counter has to be refilled several times. The cap is the constraint, not how fast you can win
+coins — no run of luck at the slots gets you past 9,999 in one sitting.
 
 ## The approach in one line
 
