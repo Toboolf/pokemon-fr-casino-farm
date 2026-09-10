@@ -18,12 +18,65 @@ one section, one slot — and let the game handle every actual purchase.
 | Milestone | State |
 |---|---|
 | M0 — Research + plan | ✅ Done |
-| M1 — Read-only inspector | ⬜ Not started |
+| M1 — Read-only inspector | ✅ Done |
 | M2 — Coin writer | ⬜ Not started |
 | M3 — Guardrails | ⬜ Not started |
 | M4 — Convenience | ⬜ Not started |
 
-No code has been written yet — this repo currently holds the investigation and the plan.
+M1 is read-only by construction: the only `open()` in the package is `"rb"`.
+
+## Usage
+
+Requires Python 3 and nothing else — no dependencies, no install step.
+
+```
+python3 -m frcoins inspect              # auto-detects the RetroArch .srm
+python3 -m frcoins inspect --sections   # + per-section checksum table
+python3 -m frcoins inspect --json       # machine-readable
+python3 -m frcoins inspect --save PATH  # explicit file
+```
+
+The save is auto-detected from the usual RetroArch directories; if more than one
+`.srm` turns up, the tool lists them and asks you to pick with `--save`. You can also
+set `FRCOINS_SAVE`.
+
+Sample output:
+
+```
+Slot  Index  Sections  Checksums  Player     Money  Coins
+----  -----  --------  ---------  -------  -------  -----
+A        22     14/14   14/14 ok  JOSEKUN  114,912  9,999
+B <-     23     14/14   14/14 ok  JOSEKUN  113,912  1,372
+
+Live slot B  (save index 23 - this is the one the game loads)
+
+  Coins         1,372 / 9,999  (8,627 below the cap)
+  Coin field    SaveBlock1+0x0294 -> section 1, file offset 0x18294 (raw 0x3B7D)
+  Sanity check  decoded values are within the game's own limits: OK
+```
+
+Exit code is non-zero if neither slot is intact, or if the decoded values fall outside
+the game's own limits — the latter is the signal that the offsets are wrong for your ROM
+and that M2 must not write to the file.
+
+## Tests
+
+```
+python3 -m unittest discover -s tests
+```
+
+21 tests, stdlib `unittest`. They build synthetic saves in memory, so the checksum
+algorithm, the section-size table and slot selection are all covered without depending
+on anyone's real save file.
+
+## Layout
+
+```
+frcoins/gen3.py    save format: sections, checksums, slot selection, field decoding
+frcoins/locate.py  finding RetroArch's .srm
+frcoins/cli.py     argparse front end
+tests/             synthetic-save tests
+```
 
 ## Docs
 
