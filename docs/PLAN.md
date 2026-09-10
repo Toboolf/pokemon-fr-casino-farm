@@ -106,14 +106,16 @@ save index, checksum valid/invalid), the security key, and decoded money + coins
 slots. Writes nothing.
 *Acceptance:* reported coins match what the game shows on screen.
 
-**M2 — The writer.** `set-coins <n>` (default 9999): timestamped backup first, edit newest
+**M2 — The writer.** ✅ Done. `set-coins <n>` (default 9999): timestamped backup first, edit newest
 slot only, recompute the section-1 checksum, then **re-open and re-parse the written file** to
 confirm it reads back correctly before declaring success.
 *Acceptance:* game boots with no "save file is corrupted" message and shows 9,999 coins.
 
-**M3 — Guardrails.** Refuse to run while a RetroArch process is live; refuse values above
-9,999; refuse to write if any section checksum fails *before* the edit (that means something is
-already wrong — don't compound it); `--dry-run` as the default with an explicit `--write`.
+**M3 — Guardrails.** Mostly folded into M2, because shipping a writer whose first failure
+mode is silently losing work was the wrong order: refusing while RetroArch is live, the
+0–9,999 range check, refusing when no slot is intact or the values are implausible, dry-run by
+default, and a scope check that refuses any edit touching bytes outside the coin field and its
+checksum. Still open: a `restore` subcommand, and pruning old backups.
 
 **M4 — Convenience.** `--money`, `restore` from backup, and a prize checklist so the sweep can
 be tracked across fills.

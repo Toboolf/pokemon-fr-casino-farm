@@ -19,11 +19,23 @@ one section, one slot — and let the game handle every actual purchase.
 |---|---|
 | M0 — Research + plan | ✅ Done |
 | M1 — Read-only inspector | ✅ Done |
-| M2 — Coin writer | ⬜ Not started |
-| M3 — Guardrails | ⬜ Not started |
+| M2 — Coin writer | ✅ Done (incl. the M3 running-emulator guard) |
+| M3 — Remaining guardrails | ⬜ Not started |
 | M4 — Convenience | ⬜ Not started |
 
-M1 is read-only by construction: the only `open()` in the package is `"rb"`.
+## The refill loop
+
+```
+1. In game    save at the Game Corner
+2. RetroArch  Close Content        <- not pause; RetroArch would overwrite the edit
+3. Terminal   python3 -m frcoins set-coins --write
+4. RetroArch  load content -> Continue
+5. In game    spend down at the prize counters
+   repeat, roughly 4 times
+```
+
+Step 2 is the one that bites if skipped, so the tool refuses to write while RetroArch
+is running rather than letting the edit be silently overwritten.
 
 ## Usage
 
@@ -34,7 +46,20 @@ python3 -m frcoins inspect              # auto-detects the RetroArch .srm
 python3 -m frcoins inspect --sections   # + per-section checksum table
 python3 -m frcoins inspect --json       # machine-readable
 python3 -m frcoins inspect --save PATH  # explicit file
+
+python3 -m frcoins set-coins            # dry run: show what would change
+python3 -m frcoins set-coins --write    # apply it (9999 by default)
+python3 -m frcoins set-coins 500 --write
 ```
+
+`set-coins` is a **dry run unless you pass `--write`**. It refuses to write when
+RetroArch is running (override with `--force`), when the value is outside 0-9999, when
+neither slot is intact, when the decoded values look implausible, or when the edit would
+touch any byte outside the coin field and its checksum. The whole edit is assembled and
+verified in memory first, so a rejected edit never reaches the disk.
+
+Every write makes a timestamped `.bak` next to the save first, and the undo command is
+printed on success.
 
 The save is auto-detected from the usual RetroArch directories; if more than one
 `.srm` turns up, the tool lists them and asks you to pick with `--save`. You can also
@@ -65,14 +90,17 @@ and that M2 must not write to the file.
 python3 -m unittest discover -s tests
 ```
 
-21 tests, stdlib `unittest`. They build synthetic saves in memory, so the checksum
-algorithm, the section-size table and slot selection are all covered without depending
-on anyone's real save file.
+49 tests, stdlib `unittest`. They build synthetic saves in memory, so the checksum
+algorithm, the section-size table, slot selection and the write path are all covered
+without depending on anyone's real save file.
 
 ## Layout
 
 ```
 frcoins/gen3.py    save format: sections, checksums, slot selection, field decoding
+frcoins/writer.py  building and verifying edits -- pure bytes in, bytes out
+frcoins/store.py   timestamped backups and crash-safe atomic writes
+frcoins/guard.py   refusing to run while RetroArch holds the save
 frcoins/locate.py  finding RetroArch's .srm
 frcoins/cli.py     argparse front end
 tests/             synthetic-save tests

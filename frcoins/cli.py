@@ -6,9 +6,10 @@ M1 is deliberately read-only: nothing in this package opens a file for writing.
 import argparse
 import json
 import os
+import shlex
 import sys
 
-from . import gen3, locate
+from . import gen3, guard, locate, store, writer
 
 PROG = "frcoins"
 
@@ -180,6 +181,129 @@ def _as_json(save):
     return payload
 
 
+def _hex_bytes(raw):
+    return " ".join("%02X" % b for b in raw)
+
+
+def _label_runs(slot, runs):
+    """Name each changed byte run, and flag anything we did not intend to touch."""
+    section_id, _, coin_offset = slot.locate(gen3.SB1_COINS)
+    checksum_offset = slot.sections[section_id].file_offset + gen3.OFF_CHECKSUM
+    expected = {
+        coin_offset: ("coin field (SaveBlock1+0x%04X, section %d)"
+                      % (gen3.SB1_COINS, section_id), 2),
+        checksum_offset: ("section %d checksum" % section_id, 2),
+    }
+    labelled, unexpected = [], []
+    for offset, old, new in runs:
+        label, size = expected.get(offset, (None, None))
+        if label is None or len(old) != size:
+            unexpected.append(offset)
+            label = "UNEXPECTED"
+        labelled.append((offset, old, new, label))
+    return labelled, unexpected
+
+
+def _set_coins(save, args):
+    try:
+        new_raw = writer.set_coins(save, args.value)
+    except writer.WriteError as exc:
+        print("%s: %s" % (PROG, exc), file=sys.stderr)
+        return 1
+
+    slot = save.live_slot
+    try:
+        writer.verify(new_raw, slot.name, args.value, slot.money)
+    except writer.WriteError as exc:
+        print("%s: refusing to write - %s" % (PROG, exc), file=sys.stderr)
+        return 1
+
+    runs = writer.diff_runs(save.raw, new_raw)
+    labelled, unexpected = _label_runs(slot, runs)
+    if unexpected:
+        print("%s: refusing to write - the edit would change bytes outside the "
+              "coin field: %s" % (PROG, ", ".join("0x%05X" % o for o in unexpected)),
+              file=sys.stderr)
+        return 1
+
+    print("Save  %s" % save.path)
+    print("      live slot %s (save index %d), player %s"
+          % (slot.name, slot.save_index, slot.player_name))
+    print()
+
+    if not runs:
+        print("  Coins already %s - nothing to change." % _num(args.value))
+        return 0
+
+    print("  Coins   %s -> %s" % (_num(slot.coins), _num(args.value)))
+    print("  Money   %s (unchanged)" % _num(slot.money))
+    print()
+    total = sum(len(old) for _, old, _, _ in labelled)
+    print("  Byte changes (%d bytes):" % total)
+    for offset, old, new, label in labelled:
+        print("    0x%05X  %s -> %s   %s"
+              % (offset, _hex_bytes(old), _hex_bytes(new), label))
+    print()
+    print("  Verified in memory: result reads %s coins, every section checksum "
+          "valid," % _num(args.value))
+    print("                      money unchanged, and slot %s untouched."
+          % ("A" if slot.name == "B" else "B"))
+    print()
+
+    if not args.write:
+        print("DRY RUN - nothing written. Re-run with --write to apply.")
+        return 0
+
+    sys.stdout.flush()   # keep the report above any error we are about to print
+    pids = [] if args.force else guard.retroarch_pids()
+    if pids:
+        print("%s: RetroArch is running (pid %s)."
+              % (PROG, ", ".join(str(p) for p in pids)), file=sys.stderr)
+        print("         It flushes SRAM every 10 seconds and again on close, so it",
+              file=sys.stderr)
+        print("         would overwrite this edit. Use Close Content in RetroArch",
+              file=sys.stderr)
+        print("         (or quit it), then run this again.", file=sys.stderr)
+        print("         Pass --force to write anyway.", file=sys.stderr)
+        return 1
+
+    try:
+        backup = store.make_backup(save.path)
+    except OSError as exc:
+        print("%s: could not create backup, nothing written: %s" % (PROG, exc),
+              file=sys.stderr)
+        return 1
+
+    try:
+        store.write_atomic(save.path, new_raw)
+    except OSError as exc:
+        print("%s: write failed: %s" % (PROG, exc), file=sys.stderr)
+        print("%s: your save is unchanged; a backup is at %s" % (PROG, backup),
+              file=sys.stderr)
+        return 1
+
+    print("  Backup   %s" % backup)
+    print("  Written  %s bytes" % _num(len(new_raw)))
+
+    # Read back from disk rather than trusting what we just held in memory.
+    try:
+        confirmed = gen3.Save.load(save.path)
+        writer.verify(confirmed.raw, slot.name, args.value, slot.money)
+    except (OSError, gen3.SaveError, writer.WriteError) as exc:
+        print("%s: WROTE THE FILE BUT IT DID NOT VERIFY: %s" % (PROG, exc),
+              file=sys.stderr)
+        print("%s: restore it with:\n  cp %s %s"
+              % (PROG, shlex.quote(backup), shlex.quote(save.path)), file=sys.stderr)
+        return 1
+
+    print("  Re-read from disk: %s coins, all sections valid."
+          % _num(confirmed.live_slot.coins))
+    print()
+    print("Load the save in RetroArch to confirm. To undo:")
+    print("  cp %s %s" % (shlex.quote(backup), shlex.quote(save.path)))
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog=PROG,
@@ -194,6 +318,20 @@ def build_parser():
                          help="also dump the per-section checksum table")
     inspect.add_argument("--json", action="store_true",
                          help="emit machine-readable JSON instead of a report")
+
+    setcoins = sub.add_parser(
+        "set-coins",
+        help="set the Game Corner coin counter (dry run unless --write)")
+    setcoins.add_argument("value", nargs="?", type=int, default=gen3.COIN_MAX,
+                          metavar="N",
+                          help="coins to set, 0-%d (default: %d)"
+                               % (gen3.COIN_MAX, gen3.COIN_MAX))
+    setcoins.add_argument("--save", metavar="PATH",
+                          help="path to the .srm file (default: auto-detect)")
+    setcoins.add_argument("--write", action="store_true",
+                          help="actually modify the file (default is a dry run)")
+    setcoins.add_argument("--force", action="store_true",
+                          help="write even if RetroArch appears to be running")
     return parser
 
 
@@ -215,6 +353,9 @@ def main(argv=None):
     except (OSError, gen3.SaveError) as exc:
         print("%s: %s" % (PROG, exc), file=sys.stderr)
         return 1
+
+    if args.command == "set-coins":
+        return _set_coins(save, args)
 
     if args.json:
         print(json.dumps(_as_json(save), indent=2))
