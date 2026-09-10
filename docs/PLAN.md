@@ -1,13 +1,13 @@
-# Plan — Game Corner coin farming for FRLG+ 1.5.1
+# Plan — Game Corner coin refill for FRLG+ 1.5.1
 
 ## 1. The actual problem
 
 The goal is not "more coins per hour". The coin counter is a **u16 hard-capped at 9,999**, and
-the full FireRed prize sweep costs roughly **~39,000 coins**. No farming rate solves that; the
-cap does not move. What is actually needed is a way to **refill the counter to 9,999 several
-times**, spending it down in between.
+the full FireRed prize sweep costs roughly **~39,000 coins**. No rate of winning coins solves
+that; the cap does not move. What is actually needed is a way to **refill the counter to 9,999
+several times**, spending it down in between.
 
-So the deliverable is a *refill tool*, not a *farming bot*. That reframing collapses a
+So the deliverable is a *refill tool*, not a *slot-machine bot*. That reframing collapses a
 multi-hour automation problem into a two-byte write.
 
 Sizing, for reference (vanilla FireRed figures — see §7):
