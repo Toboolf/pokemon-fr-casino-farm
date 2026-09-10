@@ -137,3 +137,7 @@ Never edit the `.srm` while RetroArch has the content loaded — it flushes SRAM
 every 10 seconds and on close, and will overwrite the edit. Close Content first. Always back up.
 
 ROMs and save files are gitignored and must never be committed.
+
+## License
+
+[MIT](LICENSE) — no ROM, save file, or game asset is included or distributed here.
